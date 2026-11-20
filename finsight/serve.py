@@ -61,7 +61,10 @@ class VLLMBackend:
         import httpx
 
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        self.client = httpx.Client(base_url=base_url.rstrip("/"), timeout=timeout, transport=transport,
+        base_url = base_url.rstrip("/")
+        if base_url.endswith("/v1"):  # hosted OpenAI-compatible endpoints are often given with /v1 on the end
+            base_url = base_url[:-3]
+        self.client = httpx.Client(base_url=base_url, timeout=timeout, transport=transport,
                                    headers=headers)
         self.model, self.max_tokens = model, max_tokens
 

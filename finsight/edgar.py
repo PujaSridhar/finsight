@@ -23,6 +23,11 @@ TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/"
+# Latest filings as an Atom feed, newest first, up to 100 per page (used by finsight/live.py)
+CURRENT_FEED_URL = ("https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&company=&dateb="
+                    "&owner=include&start={start}&count=100&output=atom")
+# Every filing accepted on one day, published that night (used for backfill)
+DAILY_INDEX_URL = "https://www.sec.gov/Archives/edgar/daily-index/{year}/QTR{qtr}/form.{ymd}.idx"
 SEC_HOSTS = ("www.sec.gov", "sec.gov", "data.sec.gov")
 
 
@@ -42,12 +47,14 @@ class SECClient:
         key = re.sub(r"^https://", "", url).replace("/", "__")
         return self.cache_dir / key[:200]
 
-    def get(self, url: str, retries: int = 4) -> bytes:
+    def get(self, url: str, retries: int = 4, cache: bool = True) -> bytes:
+        """GET from sec.gov. Filings never change once accepted, so they are cached; pass cache=False for
+        anything that does (the latest-filings feed, submissions, companyfacts when polling for new figures)."""
         import urllib.error
         import urllib.request
 
         path = self._cache_path(url)
-        if path.exists():
+        if cache and path.exists():
             return path.read_bytes()
         for attempt in range(retries):
             wait = self.min_interval - (time.monotonic() - self._last)
@@ -69,12 +76,13 @@ class SECClient:
                 if attempt == retries - 1:
                     raise
                 time.sleep(2 ** attempt)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(body)
+        if cache:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
         return body
 
-    def get_json(self, url: str) -> dict:
-        return json.loads(self.get(url))
+    def get_json(self, url: str, cache: bool = True) -> dict:
+        return json.loads(self.get(url, cache=cache))
 
     def companies(self) -> list[dict]:
         """[{cik, ticker, title}] in the order of SEC's ticker file."""
@@ -84,13 +92,19 @@ class SECClient:
     def earnings_8ks(self, cik: int, since: str = "2019-01-01") -> list[dict]:
         return earnings_8ks_from_submissions(self.get_json(SUBMISSIONS_URL.format(cik=cik)), since)
 
-    def companyfacts(self, cik: int) -> dict:
-        return self.get_json(COMPANYFACTS_URL.format(cik=cik))
+    def companyfacts(self, cik: int, cache: bool = True) -> dict:
+        return self.get_json(COMPANYFACTS_URL.format(cik=cik), cache=cache)
 
-    def release_url(self, cik: int, accession: str) -> str | None:
+    def submissions(self, cik: int, cache: bool = True) -> dict:
+        return self.get_json(SUBMISSIONS_URL.format(cik=cik), cache=cache)
+
+    def filing_index(self, cik: int, accession: str) -> str:
         base = ARCHIVE_URL.format(cik=cik, acc_nodash=accession.replace("-", ""))
-        index_html = self.get(base + f"{accession}-index.htm").decode("utf-8", "replace")
-        doc = find_release_document(index_html)
+        return self.get(base + f"{accession}-index.htm").decode("utf-8", "replace")
+
+    def release_url(self, cik: int, accession: str, index_html: str | None = None) -> str | None:
+        base = ARCHIVE_URL.format(cik=cik, acc_nodash=accession.replace("-", ""))
+        doc = find_release_document(index_html or self.filing_index(cik, accession))
         return base + doc if doc else None
 
     def release_text(self, url: str) -> str:

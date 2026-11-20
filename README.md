@@ -13,7 +13,7 @@ with prompting a base model, adding retrieval, or calling a large hosted model**
 and latency? The labels needed to train and test it are free: weeks after each release, the company files the
 same figures in machine-readable XBRL, which the SEC publishes.
 
-[Design doc](docs/DESIGN.md) · [Production path](docs/PRODUCTION.md)
+[Design doc](docs/DESIGN.md) · [Production path](docs/PRODUCTION.md) · [Live run](docs/LIVE.md)
 
 | Step | Notebook | Runtime |
 |---|---|---|
@@ -22,6 +22,7 @@ same figures in machine-readable XBRL, which the SEC publishes.
 | 3. Compare: base, RAG, fine-tuned, hosted | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PujaSridhar/finsight/blob/main/notebooks/03_compare.ipynb) | T4, ~1 h per system |
 | 4. Demo | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PujaSridhar/finsight/blob/main/notebooks/04_demo.ipynb) | T4 |
 | 5. Serve with vLLM | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PujaSridhar/finsight/blob/main/notebooks/05_serve.ipynb) | T4 |
+| 6. Live session: answer new releases as they are filed | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PujaSridhar/finsight/blob/main/notebooks/06_live.ipynb) | T4, a few hours |
 
 ## Results
 
@@ -44,6 +45,19 @@ sign, a likely non-GAAP figure, or missing.
 
 <!-- ![Training and validation loss](results/loss_curve_earnings.png) -->
 
+## Live: answering releases as they are filed
+
+> **TODO (after the first live runs):** link the public page here.
+
+The test set is the past. The live run watches SEC EDGAR for new earnings releases, answers each one within
+seconds to minutes of filing, and writes the answer down with its timestamp. Weeks later, when the company files
+the same quarter in its 10-Q, every answer is scored automatically against the official figures, and a public
+page shows accuracy over time and latency. The answer is always logged before the answer key exists, so the
+numbers can't be tuned after the fact. The log is plain JSON lines on the `live-data` branch.
+
+Run it free on busy earnings days in Colab (notebook 6), or around the clock with the scheduled GitHub job and a
+pay-per-second GPU endpoint; [docs/LIVE.md](docs/LIVE.md) has both, with what each costs.
+
 ## What's interesting about it
 
 - **Free, verified labels.** Each release is labeled with the figures the company later filed in XBRL (the first
@@ -56,6 +70,8 @@ sign, a likely non-GAAP figure, or missing.
 - **Honest baselines.** Retrieval-augmented prompting is the strongest no-training alternative, and a large hosted
   model is the strongest alternative overall. If fine-tuning doesn't beat the first on accuracy and the second on
   cost and speed, the table will show it.
+- **Live, self-scoring evaluation.** New releases are answered as they are filed and scored weeks later against
+  the company's own XBRL, so accuracy keeps being measured on data the model has never seen.
 - **A production path.** vLLM serving (FP8 weights plus the LoRA adapter) behind a small API with request logging,
   a CI eval gate on every change, and a monitoring and retraining plan that uses later 10-Qs as delayed labels.
 - **Runs on free hardware.** 4-bit QLoRA on a 16 GB T4, resumable training and evaluation, and a laptop is enough
@@ -118,6 +134,11 @@ python app.py --adapter outputs/finsight-earnings/final --compare --share
 pip install -r requirements-serve.txt
 bash scripts/serve_vllm.sh outputs/finsight-earnings/final
 python -m finsight.serve --backend vllm
+
+# Live (CPU; the model runs at an endpoint like the one above)
+pip install -r requirements-live.txt
+python -m finsight.live poll --model-url http://localhost:8000 --loop --interval 60
+python -m finsight.live score && python -m finsight.dashboard
 ```
 
 ## Repository layout
@@ -134,13 +155,15 @@ finsight/
   serve.py       FastAPI service in front of vLLM (or an in-process model)
   ci_eval.py     CI eval gate: re-score saved results, smoke-eval a served model
   monitor.py     daily summary of the request log
+  live.py        live watcher: poll EDGAR, answer new releases, score them once the 10-Q is filed
+  dashboard.py   the public live page, built from the live log
   data.py, prompts.py, metrics.py, evaluate.py, judge.py
                  optional FinQA / TAT-QA warm-up stage and its evaluation
 app.py           Gradio demo: release URL or text in, JSON and timing out
 configs/         training configs, prices for cost per release, eval-gate thresholds
-scripts/         vLLM launch script
+scripts/         vLLM launch script, scheduled live job
 notebooks/       Colab notebooks for each step (00 is the original v1 data notebook)
-docs/            design doc and production path
+docs/            design doc, production path, live run
 tests/           unit tests; models are replaced by stand-ins, so they run on a laptop
 ```
 

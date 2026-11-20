@@ -159,5 +159,7 @@ endpoint for that reason.
    hand, measure label accuracy, then add the fields.
 2. Same-company retrieval for the RAG baseline (the previous quarter's release and its answer), which is what a
    real deployment would have.
-3. Latency under load: throughput and p95 with many releases at once through vLLM, which is the real case on a
+3. Live evaluation (built: [LIVE.md](LIVE.md)): answer new releases as they are filed and score them when the
+   10-Q arrives, which turns the one-off test set into a running measurement.
+4. Latency under load: throughput and p95 with many releases at once through vLLM, which is the real case on a
    busy earnings morning.

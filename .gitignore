@@ -9,3 +9,6 @@ data/
 outputs/
 wandb/
 .ipynb_checkpoints/
+# the live log lives on the live-data branch (scripts/live_data_branch.sh), the page is built into site/
+live/
+site/
