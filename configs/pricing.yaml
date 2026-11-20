@@ -1,0 +1,11 @@
+# Prices used to turn measured tokens and seconds into cost per query in results/baselines/BASELINES.md.
+# Check them before you publish numbers; they change. Leave a value null to show "n/a" instead of a guess.
+
+hosted:
+  # USD per million tokens, from Anthropic's published pricing (checked Nov 2026).
+  claude-opus-5-5: {input_per_mtok: 4.0, output_per_mtok: 20.0}
+
+# Self-hosted models are charged by GPU time: cost per query = hourly price x seconds per query / 3600.
+# Put what you would actually pay for the GPU you measured on (free Colab is $0, which tells a reader nothing),
+# e.g. your cloud provider's on-demand price for a T4 or L4.
+gpu_hourly_usd: null

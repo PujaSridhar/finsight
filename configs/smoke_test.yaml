@@ -2,6 +2,7 @@
 # python -m finsight.train --config configs/smoke_test.yaml
 
 model_id: mistralai/Mistral-7B-Instruct-v0.3
+task: qa
 data_dir: data/processed
 output_dir: outputs/smoke-test
 seed: 42

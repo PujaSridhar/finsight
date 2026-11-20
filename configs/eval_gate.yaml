@@ -1,0 +1,11 @@
+# Eval gate run by CI on every push and pull request (python -m finsight.ci_eval).
+#
+# 1. Re-score: saved predictions under results/ are re-scored with the current scoring code; if a published
+#    accuracy moves by more than rescore_tolerance, the change altered the README's numbers and must say so.
+# 2. Model smoke eval (only when the FINSIGHT_EVAL_ENDPOINT secret points at a served model): a fixed sample of
+#    test releases goes to the endpoint and is compared with results/ci_baseline.json, written by
+#    --write-baseline from the currently promoted model.
+n_per_set: 50             # 50 releases: about a minute against vLLM
+max_accuracy_drop: 0.08   # 50 releases carry about ±7 points of noise, so the gate catches breakage, not 1-point dips
+min_format_ok: 0.95       # the fine-tuned model should almost always return parseable JSON
+rescore_tolerance: 0.005

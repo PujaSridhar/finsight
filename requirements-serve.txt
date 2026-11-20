@@ -1,0 +1,6 @@
+# Serving (GPU machine). Install in a fresh environment: vLLM pins its own torch version.
+# vLLM version the flags in scripts/serve_vllm.sh were checked against:
+vllm==0.34.0
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
