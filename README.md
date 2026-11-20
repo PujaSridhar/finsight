@@ -130,6 +130,9 @@ ANTHROPIC_API_KEY=... python -m finsight.compare --system hosted        # option
 python -m finsight.compare --report --gpu-hourly-usd <your GPU price>
 python app.py --adapter outputs/finsight-earnings/final --compare --share
 
+# Longer run on a Slurm cluster with an A100 (Rutgers CS steps, driven from a laptop): docs/RUTGERS.md
+python scripts/rutgers.py --help
+
 # Serving (fresh environment)
 pip install -r requirements-serve.txt
 bash scripts/serve_vllm.sh outputs/finsight-earnings/final
@@ -161,9 +164,10 @@ finsight/
                  optional FinQA / TAT-QA warm-up stage and its evaluation
 app.py           Gradio demo: release URL or text in, JSON and timing out
 configs/         training configs, prices for cost per release, eval-gate thresholds
-scripts/         vLLM launch script, scheduled live job
+scripts/         vLLM launch script, scheduled live job, Rutgers Slurm helper (rutgers.py)
+slurm/           Slurm jobs for a longer A100 training run and a vLLM eval (docs/RUTGERS.md)
 notebooks/       Colab notebooks for each step (00 is the original v1 data notebook)
-docs/            design doc, production path, live run
+docs/            design doc, production path, live run, Rutgers cluster steps
 tests/           unit tests; models are replaced by stand-ins, so they run on a laptop
 ```
 
