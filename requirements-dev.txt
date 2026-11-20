@@ -1,0 +1,3 @@
+# CPU-only: build the dataset and run the tests
+pyyaml>=6
+pytest>=8
