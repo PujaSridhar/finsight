@@ -34,7 +34,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import earnings
-from .edgar import CURRENT_FEED_URL, DAILY_INDEX_URL, SECClient, release_excerpt
+from .edgar import CURRENT_FEED_URL, DAILY_INDEX_URL, EXCERPT_CHARS, SECClient, release_excerpt
 
 ATOM = "{http://www.w3.org/2005/Atom}"
 ACC_RE = re.compile(r"accession-number=(\d{10}-\d{2}-\d{6})")
@@ -420,7 +420,7 @@ def main() -> None:
                        help="served model name: the LoRA name in vLLM (finsight) or what your host calls it")
         p.add_argument("--api-key-env", default="FINSIGHT_MODEL_KEY", help="env var holding the endpoint's key")
         p.add_argument("--timeout", type=float, default=300, help="seconds; allows for a serverless cold start")
-        p.add_argument("--max-chars", type=int, default=9000)
+        p.add_argument("--max-chars", type=int, default=EXCERPT_CHARS)
     sub.choices["poll"].add_argument("--loop", action="store_true")
     sub.choices["poll"].add_argument("--interval", type=float, default=60, help="seconds between polls")
     sub.choices["poll"].add_argument("--max-hours", type=float, default=None)

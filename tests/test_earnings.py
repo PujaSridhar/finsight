@@ -168,3 +168,17 @@ def test_build_records_end_to_end_with_a_fake_client():
 def test_company_split_is_stable_and_covers_all_splits():
     splits = {e.company_split(cik) for cik in range(1, 500)}
     assert splits == {"train", "val", "test"} and e.company_split(320193) == e.company_split(320193)
+
+
+def test_training_stops_when_most_examples_are_too_long():
+    import pytest
+    from finsight.train import check_coverage
+
+    check_coverage({"kept": 900, "dropped_too_long": 100}, {"max_seq_len": 3072})
+    with pytest.raises(SystemExit):
+        check_coverage({"kept": 65, "dropped_too_long": 972}, {"max_seq_len": 3072})
+
+
+def test_default_excerpt_is_short_enough():
+    text = "Acme reports results\n" + "x" * 50_000 + "\nCondensed Consolidated Statements of Operations\n" + "1,234 " * 5000
+    assert len(edgar.release_excerpt(text)) <= edgar.EXCERPT_CHARS
