@@ -1,0 +1,73 @@
+name: live
+
+# The live watcher, run on GitHub's free runners (free for public repositories):
+#   every 10 minutes on weekdays  poll SEC EDGAR for new earnings releases and answer them
+#   every hour on weekdays        rebuild the public page
+#   once a day                    score answers whose 10-Q / 10-K figures have been filed, rebuild the page
+# The runner only does CPU work; the model runs at FINSIGHT_MODEL_URL (see docs/LIVE.md for options and cost).
+# GitHub may start scheduled runs late on busy days, so detection here takes minutes, not seconds.
+on:
+  schedule:
+    - cron: "*/10 10-23 * * 1-5"   # 6 am to 8 pm Eastern (UTC times; an hour off in winter)
+    - cron: "5 11-23 * * 1-5"
+    - cron: "30 8 * * *"
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "watch, score, page or backfill"
+        default: watch
+      date:
+        description: "backfill only: a past day, YYYY-MM-DD"
+        default: ""
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      task: ${{ steps.task.outputs.task }}
+    env:
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      FINSIGHT_MODEL_URL: ${{ secrets.FINSIGHT_MODEL_URL }}
+      FINSIGHT_MODEL_NAME: ${{ secrets.FINSIGHT_MODEL_NAME || 'finsight' }}
+      FINSIGHT_MODEL_KEY: ${{ secrets.FINSIGHT_MODEL_KEY }}
+    steps:
+      - id: task
+        run: |
+          case "${{ github.event.schedule }}" in
+            "*/10 10-23 * * 1-5") echo "task=watch" >> "$GITHUB_OUTPUT" ;;
+            "5 11-23 * * 1-5")    echo "task=page" >> "$GITHUB_OUTPUT" ;;
+            "30 8 * * *")         echo "task=score" >> "$GITHUB_OUTPUT" ;;
+            *)                    echo "task=${{ inputs.task || 'watch' }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q -r requirements-live.txt
+      - run: bash scripts/live_job.sh "${{ steps.task.outputs.task }}" "${{ inputs.date }}"
+      - if: hashFiles('site/index.html') != '' && steps.task.outputs.task != 'watch'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  pages:
+    needs: run
+    if: needs.run.outputs.task != 'watch'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true   # until Pages is turned on in the repo settings (Source: GitHub Actions)

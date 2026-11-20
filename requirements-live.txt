@@ -1,0 +1,3 @@
+# The live watcher, scorer and page builder only (CPU; the model runs elsewhere). See docs/LIVE.md.
+httpx>=0.27
+pydantic>=2.6
