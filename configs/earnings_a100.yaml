@@ -1,0 +1,53 @@
+# FinSight on one A100 (40 GB), e.g. the Rutgers CS Slurm cluster (docs/RUTGERS.md).
+# Same data, prompt and LoRA shape as configs/earnings_t4.yaml, so the two adapters are directly comparable.
+# What changes on the bigger GPU:
+#   * 3 passes over the training releases instead of 1 (the T4 run was 50 optimizer steps, one pass);
+#   * validation every 20 steps over the whole validation split, and the checkpoint with the lowest
+#     validation loss is kept as final/ (load_best_model_at_end), so extra epochs can't quietly overfit;
+#   * longer releases fit (max_seq_len 4096), bf16 instead of fp16, 4 releases per forward pass.
+# Effective batch stays 16 releases per optimizer step (4 x 4), the same as the T4 run.
+
+task: earnings
+model_id: mistralai/Mistral-7B-Instruct-v0.3
+data_dir: data/earnings
+output_dir: outputs/finsight-earnings-a100
+loss_curve: results/loss_curve_earnings_a100.png
+seed: 42
+init_adapter: null
+
+# Data
+max_train_examples: 2000      # more than the training split, so every training release is used
+max_val_examples: 200         # the whole validation split
+max_seq_len: 4096
+
+# QLoRA (unchanged from the T4 run)
+load_in_4bit: true
+bnb_4bit_quant_type: nf4
+bnb_4bit_use_double_quant: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+# Optimisation
+num_train_epochs: 3
+per_device_train_batch_size: 4
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 4
+learning_rate: 2.0e-4
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.3
+optim: paged_adamw_8bit
+fp16: false
+bf16: true
+gradient_checkpointing: true
+
+# Logging / checkpoints (save_steps must equal eval_steps for load_best_model_at_end)
+logging_steps: 5
+eval_steps: 20
+save_steps: 20
+save_total_limit: 3
+load_best_model_at_end: true
+report_to: none

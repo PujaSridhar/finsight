@@ -168,6 +168,15 @@ def save_loss_curve(log_history: list[dict], path: Path) -> None:
     fig.savefig(path, dpi=150)
 
 
+def best_checkpoint_args(cfg: dict) -> dict:
+    """Longer runs (configs/earnings_a100.yaml) keep the checkpoint with the lowest validation loss as final/."""
+    if not cfg.get("load_best_model_at_end"):
+        return {}
+    if cfg["save_steps"] != cfg["eval_steps"]:
+        raise SystemExit("load_best_model_at_end needs save_steps equal to eval_steps")
+    return {"load_best_model_at_end": True, "metric_for_best_model": "eval_loss", "greater_is_better": False}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default="configs/qlora_t4.yaml")
@@ -228,6 +237,7 @@ def main() -> None:
         report_to=cfg.get("report_to", "none"),
         seed=cfg["seed"],
         remove_unused_columns=False,
+        **best_checkpoint_args(cfg),
     )
     trainer = Trainer(
         model=model,
@@ -255,6 +265,7 @@ def main() -> None:
         "train_minutes": round(minutes, 1),
         "final_eval_loss": round(eval_metrics.get("eval_loss", float("nan")), 4),
         "global_steps": trainer.state.global_step,
+        "best_checkpoint": trainer.state.best_model_checkpoint,
         "log_history": trainer.state.log_history,
     }
     (out_dir / "training_summary.json").write_text(json.dumps(summary, indent=2))
