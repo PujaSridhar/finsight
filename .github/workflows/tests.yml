@@ -9,6 +9,27 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements-dev.txt
-      - name: Build the dataset (CPU, ~1 min)
+      - name: Build the FinQA / TAT-QA warm-up dataset (CPU, ~1 min; checks its labels)
         run: python -m finsight.data --out data/processed
       - run: python -m pytest -q
+
+  eval-gate:
+    # A small eval on every change. Re-scoring always runs (CPU). The model smoke eval runs only when the
+    # FINSIGHT_EVAL_ENDPOINT secret points at a served model (scripts/serve_vllm.sh), because GitHub's free
+    # runners have no GPU. It reads the 50 releases committed in results/ci_sample.jsonl, so CI never calls EDGAR.
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      FINSIGHT_EVAL_ENDPOINT: ${{ secrets.FINSIGHT_EVAL_ENDPOINT }}
+      FINSIGHT_EVAL_TOKEN: ${{ secrets.FINSIGHT_EVAL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - name: Re-score saved predictions with the current scoring code
+        run: python -m finsight.ci_eval --rescore
+      - name: Smoke eval against the served model
+        if: env.FINSIGHT_EVAL_ENDPOINT != ''
+        run: python -m finsight.ci_eval --endpoint "$FINSIGHT_EVAL_ENDPOINT"

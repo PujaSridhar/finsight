@@ -3,6 +3,7 @@
 # checkpoints every 50 steps so a disconnected session can resume with --resume.
 
 model_id: mistralai/Mistral-7B-Instruct-v0.3   # gated: accept the terms on its HF page and log in
+task: qa
 data_dir: data/processed
 output_dir: outputs/finsight-mistral-7b-qlora
 seed: 42

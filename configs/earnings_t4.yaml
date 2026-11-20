@@ -1,0 +1,49 @@
+# FinSight: QLoRA fine-tuning of Mistral-7B-Instruct to read earnings releases into JSON,
+# on a single 16 GB T4 (free Colab or Kaggle). Checkpoints every 50 steps; resume with --resume.
+
+task: earnings
+model_id: mistralai/Mistral-7B-Instruct-v0.3   # gated: accept the terms on its HF page and log in
+data_dir: data/earnings
+output_dir: outputs/finsight-earnings
+loss_curve: results/loss_curve_earnings.png
+seed: 42
+
+# Optional warm-up: start from the FinQA/TAT-QA adapter (configs/qlora_t4.yaml) instead of a fresh one.
+# Leave null for the main run; docs/DESIGN.md explains when the warm-up is worth its ~3 GPU hours.
+init_adapter: null    # e.g. outputs/finsight-mistral-7b-qlora/final
+
+# Data
+max_train_examples: 2000      # sampled from the training releases; ~3-4 T4 hours at ~2,500 tokens each (rough)
+max_val_examples: 100
+max_seq_len: 3072             # 9,000-character release excerpt is ~2,500 tokens; longer examples are dropped
+
+# QLoRA (same as the warm-up stage, so its adapter can be continued)
+load_in_4bit: true
+bnb_4bit_quant_type: nf4
+bnb_4bit_use_double_quant: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+# Optimisation
+num_train_epochs: 1
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 16
+learning_rate: 2.0e-4
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.3
+optim: paged_adamw_8bit
+fp16: true          # T4 has no bf16; set bf16: true and fp16: false on A100/L4
+bf16: false
+gradient_checkpointing: true
+
+# Logging / checkpoints
+logging_steps: 10
+eval_steps: 50
+save_steps: 50
+save_total_limit: 2
+report_to: none

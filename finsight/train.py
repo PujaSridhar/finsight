@@ -1,16 +1,21 @@
-"""Phase 2: QLoRA fine-tuning of Mistral-7B-Instruct.
+"""QLoRA fine-tuning of Mistral-7B-Instruct.
 
-    python -m finsight.train --config configs/qlora_t4.yaml
-    python -m finsight.train --config configs/qlora_t4.yaml --resume   # after a disconnect
+    python -m finsight.train --config configs/earnings_t4.yaml           # the FinSight model
+    python -m finsight.train --config configs/earnings_t4.yaml --resume  # after a disconnect
+    python -m finsight.train --config configs/qlora_t4.yaml              # optional FinQA/TAT-QA warm-up stage
+
+The config's `task` picks the data and prompt (finsight/tasks.py). `init_adapter`
+continues training an existing adapter, which is how the warm-up stage feeds the
+earnings stage.
 
 Design choices (and why):
 
 * 4-bit NF4 base weights + LoRA adapters on every linear layer (QLoRA,
   Dettmers et al. 2023): the 7B model fits a 16 GB T4 with room for 2K-token
   sequences.
-* Loss only on the assistant response. The prompt (instructions + filing
-  excerpt) is ~95% of each sequence, so training on it would mostly teach the
-  model to reproduce 10-K text instead of how to reason over it.
+* Loss only on the assistant response. The prompt (instructions + release
+  or filing excerpt) is over 95% of each sequence, so training on it would
+  mostly teach the model to reproduce filing text instead of reading it.
 * Over-length examples are dropped, never truncated, so no target answer is
   cut off mid-calculation.
 * Plain transformers Trainer + peft rather than a higher-level wrapper, so the
@@ -28,7 +33,7 @@ from pathlib import Path
 
 import yaml
 
-from .prompts import build_messages
+from . import tasks
 
 
 def load_config(path: str) -> dict:
@@ -40,16 +45,16 @@ def read_jsonl(path: Path) -> list[dict]:
     return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
 
 
-def encode_example(tokenizer, ex: dict, max_len: int) -> dict | None:
+def encode_example(tokenizer, ex: dict, max_len: int, task=None) -> dict | None:
     """Tokenize one example with the chat template, masking the prompt.
 
     Returns None if prompt + response exceed max_len.
     """
-    prompt_text = tokenizer.apply_chat_template(
-        build_messages(ex["context"], ex["question"]), tokenize=False, add_generation_prompt=True
-    )
+    task = task or tasks.get("qa")
+    prompt_messages = task.messages(ex)
+    prompt_text = tokenizer.apply_chat_template(prompt_messages, tokenize=False, add_generation_prompt=True)
     full_text = tokenizer.apply_chat_template(
-        build_messages(ex["context"], ex["question"], ex["response"]), tokenize=False
+        prompt_messages + [{"role": "assistant", "content": task.target(ex)}], tokenize=False
     )
     if not full_text.startswith(prompt_text):
         raise ValueError("chat template output does not start with the prompt; check the tokenizer's template")
@@ -73,12 +78,12 @@ def encode_example(tokenizer, ex: dict, max_len: int) -> dict | None:
     }
 
 
-def build_split(tokenizer, rows: list[dict], max_len: int, name: str):
+def build_split(tokenizer, rows: list[dict], max_len: int, name: str, task=None):
     from datasets import Dataset
 
     encoded, dropped = [], 0
     for ex in rows:
-        enc = encode_example(tokenizer, ex, max_len)
+        enc = encode_example(tokenizer, ex, max_len, task)
         if enc is None:
             dropped += 1
         else:
@@ -109,6 +114,13 @@ def load_model_for_training(cfg: dict):
     )
     model.config.use_cache = False
     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=cfg.get("gradient_checkpointing", True))
+    if cfg.get("init_adapter"):
+        from peft import PeftModel
+
+        # Continue from an earlier stage's adapter (e.g. the FinQA/TAT-QA warm-up) instead of a fresh one.
+        model = PeftModel.from_pretrained(model, cfg["init_adapter"], is_trainable=True)
+        model.print_trainable_parameters()
+        return model
     lora = LoraConfig(
         r=cfg["lora_r"], lora_alpha=cfg["lora_alpha"], lora_dropout=cfg["lora_dropout"],
         target_modules=cfg["lora_target_modules"], bias="none", task_type="CAUSAL_LM",
@@ -161,6 +173,7 @@ def main() -> None:
         tokenizer.pad_token = tokenizer.eos_token  # padded positions get label -100, so this is safe
     tokenizer.padding_side = "right"
 
+    task = tasks.get(cfg.get("task", "qa"))
     data_dir = Path(cfg["data_dir"])
     rng = random.Random(cfg["seed"])
     train_rows = read_jsonl(data_dir / "train.jsonl")
@@ -169,8 +182,8 @@ def main() -> None:
     train_rows = train_rows[: cfg["max_train_examples"]]
     val_rows = val_rows[: cfg["max_val_examples"]]
     print("Tokenizing...")
-    train_ds, train_info = build_split(tokenizer, train_rows, cfg["max_seq_len"], "train")
-    val_ds, val_info = build_split(tokenizer, val_rows, cfg["max_seq_len"], "val")
+    train_ds, train_info = build_split(tokenizer, train_rows, cfg["max_seq_len"], "train", task)
+    val_ds, val_info = build_split(tokenizer, val_rows, cfg["max_seq_len"], "val", task)
 
     model = load_model_for_training(cfg)
 
@@ -220,6 +233,8 @@ def main() -> None:
 
     summary = {
         "model_id": cfg["model_id"],
+        "task": task.name,
+        "init_adapter": cfg.get("init_adapter"),
         "train_examples": train_info,
         "val_examples": val_info,
         "train_minutes": round(minutes, 1),
@@ -228,9 +243,10 @@ def main() -> None:
         "log_history": trainer.state.log_history,
     }
     (out_dir / "training_summary.json").write_text(json.dumps(summary, indent=2))
-    save_loss_curve(trainer.state.log_history, Path("results/loss_curve.png"))
+    curve = Path(cfg.get("loss_curve", "results/loss_curve.png"))
+    save_loss_curve(trainer.state.log_history, curve)
     print(f"\nSaved adapter to {final} after {minutes:.0f} min. Final val loss {summary['final_eval_loss']}.")
-    print("Loss curve: results/loss_curve.png")
+    print(f"Loss curve: {curve}")
 
 
 if __name__ == "__main__":
