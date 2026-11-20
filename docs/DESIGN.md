@@ -116,7 +116,7 @@ comparison measures the model, not prompt engineering. The hosted model could do
 output mode; the README should note that rather than tune one side.
 
 **QLoRA on a free T4.** 4-bit NF4 base weights and LoRA (r=16) on all linear layers fit Mistral-7B and a
-3,072-token sequence in 16 GB. Training checkpoints every 50 steps so a dropped Colab session is resumable.
+3,072-token sequence in 16 GB. Training checkpoints every 10 steps (about 30 minutes on a T4) so a dropped Colab session is resumable.
 
 **FinQA / TAT-QA warm-up is optional, and off by default.** The earlier version of this project fine-tuned on
 18K verified numerical questions over 10-K tables. That is related practice (reading financial tables, scale

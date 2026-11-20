@@ -99,7 +99,7 @@ underrepresented (their quarterly figures are usually not tagged in the 10-K).
 
 **Training.** `configs/earnings_t4.yaml`: 4-bit NF4 with double quantization, LoRA r=16 / alpha=32 on all seven
 projection matrices, loss on the JSON answer only, lr 2e-4 cosine, effective batch 16, max length 3,072 (longer
-examples dropped, never truncated), checkpoints every 50 steps. An optional warm-up stage on 18K verified
+examples dropped, never truncated), checkpoints every 10 steps. An optional warm-up stage on 18K verified
 FinQA / TAT-QA questions (`configs/qlora_t4.yaml`, then `init_adapter`) is kept as an ablation; see the design doc.
 
 **Comparison.** `python -m finsight.compare --system {base,rag,finetuned,hosted}` writes per-release predictions

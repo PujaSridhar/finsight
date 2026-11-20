@@ -1,5 +1,5 @@
 # FinSight: QLoRA fine-tuning of Mistral-7B-Instruct to read earnings releases into JSON,
-# on a single 16 GB T4 (free Colab or Kaggle). Checkpoints every 50 steps; resume with --resume.
+# on a single 16 GB T4 (free Colab or Kaggle). Checkpoints every 10 steps (~30 min on a T4); resume with --resume.
 
 task: earnings
 model_id: mistralai/Mistral-7B-Instruct-v0.3   # gated: accept the terms on its HF page and log in
@@ -44,6 +44,6 @@ gradient_checkpointing: true
 # Logging / checkpoints
 logging_steps: 10
 eval_steps: 50
-save_steps: 50
+save_steps: 10
 save_total_limit: 2
 report_to: none
