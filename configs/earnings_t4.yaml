@@ -13,9 +13,9 @@ seed: 42
 init_adapter: null    # e.g. outputs/finsight-mistral-7b-qlora/final
 
 # Data
-max_train_examples: 2000      # sampled from the training releases; ~3-4 T4 hours at ~2,500 tokens each (rough)
+max_train_examples: 2000      # sampled from the training releases; ~3-4 T4 hours at ~2,850 tokens each (rough)
 max_val_examples: 100
-max_seq_len: 3072             # 9,000-character release excerpt is ~2,500 tokens; longer examples are dropped
+max_seq_len: 3072             # 6,000-character release excerpt is ~2,850 tokens with the prompt; longer ones are dropped
 
 # QLoRA (same as the warm-up stage, so its adapter can be continued)
 load_in_4bit: true

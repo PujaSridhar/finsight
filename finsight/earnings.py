@@ -368,12 +368,14 @@ def build(out_dir: Path, raw_dir: Path, n_companies: int, since: str, max_chars:
 
 
 def main() -> None:
+    from .edgar import EXCERPT_CHARS
+
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default="data/earnings")
     ap.add_argument("--raw", default="data/raw")
     ap.add_argument("--companies", type=int, default=150, help="first N companies in SEC's ticker file")
     ap.add_argument("--since", default="2019-01-01")
-    ap.add_argument("--max-chars", type=int, default=9000, help="release excerpt length the model reads")
+    ap.add_argument("--max-chars", type=int, default=EXCERPT_CHARS, help="release excerpt length the model reads")
     ap.add_argument("--n-test", type=int, default=300)
     args = ap.parse_args()
     build(Path(args.out), Path(args.raw), args.companies, args.since, args.max_chars, n_test=args.n_test)

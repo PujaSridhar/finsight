@@ -95,6 +95,20 @@ def build_split(tokenizer, rows: list[dict], max_len: int, name: str, task=None)
                                         "median_tokens": lengths[len(lengths) // 2], "max_tokens": lengths[-1]}
 
 
+def check_coverage(info: dict, cfg: dict, max_dropped: float = 0.2) -> None:
+    """Stop before loading the model if most of the data doesn't fit max_seq_len.
+
+    Training on the few short releases that fit would give a model that looks trained but has seen almost
+    nothing; better to fail here and rebuild the data with a shorter excerpt (or raise max_seq_len).
+    """
+    total = info["kept"] + info["dropped_too_long"]
+    if total and info["dropped_too_long"] / total > cfg.get("max_dropped_fraction", max_dropped):
+        raise SystemExit(
+            f"{info['dropped_too_long']} of {total} training examples are longer than max_seq_len "
+            f"({cfg['max_seq_len']} tokens). Rebuild the data with a shorter excerpt "
+            f"(python -m finsight.earnings --max-chars ...) or raise max_seq_len.")
+
+
 def load_model_for_training(cfg: dict):
     import torch
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -184,6 +198,7 @@ def main() -> None:
     print("Tokenizing...")
     train_ds, train_info = build_split(tokenizer, train_rows, cfg["max_seq_len"], "train", task)
     val_ds, val_info = build_split(tokenizer, val_rows, cfg["max_seq_len"], "val", task)
+    check_coverage(train_info, cfg)
 
     model = load_model_for_training(cfg)
 

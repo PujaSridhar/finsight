@@ -92,8 +92,8 @@ flowchart LR
 ```
 
 **Data.** `python -m finsight.earnings` takes the first 150 companies in the SEC's ticker file, finds their
-earnings 8-Ks since 2019, downloads Exhibit 99.1, and cuts each release to the opening 3,000 characters plus the
-income statement (about 2,500 tokens). It needs `SEC_USER_AGENT` set to your name and email, which the SEC
+earnings 8-Ks since 2019, downloads Exhibit 99.1, and cuts each release to the opening 2,000 characters plus the
+income statement, 6,000 characters in all (about 2,650 tokens; release text averages 2.3 characters per token). It needs `SEC_USER_AGENT` set to your name and email, which the SEC
 requires of every client. Banks and insurers mostly drop out (no standard revenue tag), and fourth quarters are
 underrepresented (their quarterly figures are usually not tagged in the 10-K).
 

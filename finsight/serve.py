@@ -34,7 +34,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from . import earnings
-from .edgar import is_sec_url, release_excerpt
+from .edgar import EXCERPT_CHARS, is_sec_url, release_excerpt
 
 MAX_TEXT_CHARS = 200_000   # whole releases are accepted; the model reads release_excerpt() of them
 
@@ -100,7 +100,7 @@ class TransformersBackend:
         return True
 
 
-def extract(backend, text: str, max_chars: int = 9000) -> dict:
+def extract(backend, text: str, max_chars: int = EXCERPT_CHARS) -> dict:
     """Run one release through the model. Shared by the API and the demo."""
     excerpt = release_excerpt(text, max_chars)
     start = time.perf_counter()

@@ -233,11 +233,18 @@ INCOME_STATEMENT_RE = re.compile(
     r"|income\s+statements?)", re.I)
 
 
-def release_excerpt(text: str, max_chars: int = 9000, head_chars: int = 3000) -> str:
+# Release text tokenizes at about 2.3 characters per Mistral token (numbers and tables split finely), so
+# 6,000 characters is about 2,650 tokens, and with the instruction and answer about 2,850: inside the 3,072-token
+# training length that fits a T4. (9,000 characters came to ~4,000 tokens; 94% of releases didn't fit.)
+EXCERPT_CHARS = 6000
+HEAD_CHARS = 2000
+
+
+def release_excerpt(text: str, max_chars: int = EXCERPT_CHARS, head_chars: int = HEAD_CHARS) -> str:
     """What the model reads: the release's opening (headline figures) plus its income statement.
 
     A release runs 20K-100K characters; the figures we extract are in the first page and the income statement.
-    Cutting to those keeps the prompt under ~2,500 tokens, which is what makes a 7B model fast and fits a T4.
+    Cutting to those keeps the prompt under ~2,900 tokens, which is what makes a 7B model fast and fits a T4.
     The same cut is used in training, evaluation, serving and the demo.
     """
     if len(text) <= max_chars:

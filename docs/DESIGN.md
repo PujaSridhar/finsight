@@ -102,8 +102,9 @@ an unfamiliar layout, not memorizing a company's template. This is harsher than 
 each company's past releases) and is the honest version of the number.
 
 **An excerpt, not the whole release.** Releases run 20K to 100K characters. The figures live in the first page
-and the income statement, so the model reads the opening 3,000 characters plus the income statement, about 9,000
-characters or 2,500 tokens. That keeps training on a T4 and keeps latency down. Cost: a release that only reports
+and the income statement, so the model reads the opening 2,000 characters plus the income statement, 6,000
+characters or about 2,650 tokens (release text averages 2.3 characters per Mistral token; a first cut at 9,000
+characters came to ~4,000 tokens and didn't fit the T4 training length). That keeps training on a T4 and keeps latency down. Cost: a release that only reports
 a figure elsewhere (say, in a segment table) is dropped at build time and could be missed at serving time.
 
 **JSON out, no reasoning steps.** The QA warm-up task trains step-by-step answers; this task does not. The output
