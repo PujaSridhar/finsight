@@ -175,6 +175,9 @@ tests/           unit tests; models are replaced by stand-ins, so they run on a 
 - Coverage leans to large US companies and to the first three quarters of the fiscal year, and mostly excludes
   banks and insurers.
 - A few hundred test releases give a few points of sampling error; compare systems on the same releases.
+- The model reads a 6,000-character excerpt (opening plus income statement) because a free T4 trains on at most
+  3,072 tokens. Releases whose figures appear only past that cut are dropped at build time
+  (`data/earnings/stats.json` counts them) and could be missed at serving time; a larger GPU can read more.
 
 ## Data and credits
 

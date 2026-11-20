@@ -149,6 +149,7 @@ endpoint for that reason.
 | Wrong labels (period mismatch, restatement, other revenue line) | Verified-in-text filter; first-filed XBRL value; outcomes counted in `stats.json` |
 | Leakage between train and test | Company-level split, asserted at build time |
 | Small test set gives noisy numbers | Report n and the ±5-point sampling error; compare systems on the same releases |
+| The excerpt is cut to 6,000 characters (~2,650 tokens) to fit the T4's 3,072-token training length, so figures reported only later in a release are out of view | Such releases are dropped at build time and counted in `stats.json`; on a 24 GB+ GPU raise `max_seq_len` and `--max-chars` together |
 | Survivorship and coverage bias: big US companies, Q1-Q3 overrepresented (Q4 is usually only in the 10-K's annual figures), banks mostly excluded (no standard revenue tag) | Stated as a limit; the universe size is a flag |
 | Release formats drift over time | Monitoring of null-field and invalid-JSON rates; retraining loop in PRODUCTION.md |
 | Overstating a prototype | No invented numbers; this doc and the README say what was and was not measured |
