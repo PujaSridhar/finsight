@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+# datasets are downloaded and rebuilt by `python -m finsight.data`
+data/
+# model checkpoints and adapters (~160 MB each); publish adapters to the HF Hub instead
+outputs/
+wandb/
+.ipynb_checkpoints/

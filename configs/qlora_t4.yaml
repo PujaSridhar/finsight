@@ -1,0 +1,44 @@
+# QLoRA fine-tuning of Mistral-7B-Instruct on a single 16 GB T4
+# (free Colab or Kaggle). ~4K examples x 1 epoch takes roughly 2-3 hours on a T4;
+# checkpoints every 50 steps so a disconnected session can resume with --resume.
+
+model_id: mistralai/Mistral-7B-Instruct-v0.3   # gated: accept the terms on its HF page and log in
+data_dir: data/processed
+output_dir: outputs/finsight-mistral-7b-qlora
+seed: 42
+
+# Data
+max_train_examples: 4000      # sampled from the 18K-example train set; raise if you have more GPU time
+max_val_examples: 200
+max_seq_len: 2048             # longer examples are dropped, not truncated (so answers are never cut off)
+
+# QLoRA
+load_in_4bit: true
+bnb_4bit_quant_type: nf4
+bnb_4bit_use_double_quant: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+# Optimisation
+num_train_epochs: 1
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 16   # effective batch size 16
+learning_rate: 2.0e-4
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.3
+optim: paged_adamw_8bit
+fp16: true          # T4 has no bf16; set bf16: true and fp16: false on A100/L4
+bf16: false
+gradient_checkpointing: true
+
+# Logging / checkpoints
+logging_steps: 10
+eval_steps: 50
+save_steps: 50
+save_total_limit: 2
+report_to: none     # set to wandb to log curves to Weights & Biases
